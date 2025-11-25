@@ -1,20 +1,31 @@
 services:
   wordpress:
-    image: wordpress
+    image: wordpress:latest
+    user: "${ENV_UID}:${ENV_GID}"
+    container_name: wordpress
     restart: always
     env_file: .env
+    environment:
+      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
+      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
+      - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
     volumes:
       - ./wordpress/src:/var/www/html
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wordpress.rule=Host(`localhost`)"
-      - "traefik.http.routers.wordpress.entrypoints=web"
+      - "traefik.http.routers.wordpress.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.wordpress.entrypoints=websecure"
+      - "traefik.http.routers.wordpress.tls.certresolver=myresolver"
       - "traefik.http.services.wordpress.loadbalancer.server.port=80"
     networks:
       - web
+    depends_on:
+      - db
 
   db:
-    image: mariadb
+    image: mariadb:latest
+    user: "${ENV_UID}:${ENV_GID}"
     container_name: db
     restart: always
     expose:
@@ -33,13 +44,13 @@ services:
       - MYSQL_DATABASE=${WORDPRESS_DB_NAME}
       - MYSQL_ALLOW_EMPTY_PASSWORD=0
       - TZ=Europe/Paris
-    labels:
-      - "traefik.enable=false"
     networks:
       - web
+    labels:
+      - "traefik.enable=false"
 
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.6
     user: "${ENV_UID}:${ENV_GID}"
     container_name: traefik
     command:
@@ -50,15 +61,10 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
-      # Resolver
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-      # Debug
-      # - "--log.level=DEBUG"
-      # - "--accesslog=true"
-      # - "--accesslog.format=json"
     ports:
       - "80:80"
       - "443:443"

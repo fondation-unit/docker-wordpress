@@ -17,7 +17,7 @@ A Docker Compose stack for deploying WordPress using a Traefik proxy, based on t
 chmod 600 traefik/acme.json
 ```
 
-WordPress may need `FORCE_SSL_ADMIN` to properly load stylesheets and force HTTPS in the admin dashboard:
+2. WordPress may need `FORCE_SSL_ADMIN` to properly load stylesheets and force HTTPS in the admin dashboard:
 
 ```php
 define('FORCE_SSL_ADMIN', true);

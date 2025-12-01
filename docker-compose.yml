@@ -1,6 +1,7 @@
 services:
   wordpress:
     image: wordpress:latest
+    command: sh -c "chown -R www-data:www-data /var/www/html && apache2-foreground"
     user: "${ENV_UID}:${ENV_GID}"
     container_name: wordpress
     restart: always

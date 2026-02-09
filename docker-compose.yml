@@ -24,6 +24,8 @@ services:
       - web
     depends_on:
       - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   db:
     image: mariadb:latest

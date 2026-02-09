@@ -28,3 +28,22 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARD
  $_SERVER['HTTPS'] = 'on';
 }
 ```
+
+## Adding PHP extensions
+
+Depending on your requirements, you can either use the default WordPress image:
+
+```yaml
+services:
+  wordpress:
+    image: wordpress:latest
+```
+
+Or build a custom image with additional PHP extensions. To do this, modify the `wwordpress` service in `docker-compose.yml` to use a local build:
+
+```yaml
+services:
+  wordpress:
+    build:
+      dockerfile: ./wordpress/docker/Dockerfile
+```

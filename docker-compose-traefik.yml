@@ -3,6 +3,7 @@ services:
     build:
       dockerfile: ./wordpress/docker/Dockerfile
     command: sh -c "chown -R www-data:www-data /var/www/html && apache2-foreground"
+    user: "${ENV_UID}:${ENV_GID}"
     container_name: wordpress
     restart: always
     env_file: .env
@@ -21,12 +22,14 @@ services:
       - "traefik.http.services.wordpress.loadbalancer.server.port=80"
     networks:
       - web
-      - internal
     depends_on:
       - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   db:
     image: mariadb:latest
+    user: "${ENV_UID}:${ENV_GID}"
     container_name: db
     restart: always
     expose:
@@ -46,12 +49,39 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=0
       - TZ=Europe/Paris
     networks:
-      - internal
+      - web
+    labels:
+      - "traefik.enable=false"
+
+  traefik:
+    image: traefik:v3.6
+    user: "${ENV_UID}:${ENV_GID}"
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./traefik/acme.json:/letsencrypt/acme.json"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
 
 volumes:
   db_data:
+    driver: local
 
 networks:
   web:
     external: true
-  internal:

@@ -2,7 +2,7 @@ services:
   wordpress:
     build:
       dockerfile: ./wordpress/docker/Dockerfile
-    command: sh -c "chown -R www-data:www-data /var/www/html && apache2-foreground"
+    command: apache2-foreground
     container_name: wordpress
     restart: always
     env_file: .env
@@ -12,7 +12,8 @@ services:
       - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
       - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
     volumes:
-      - ./wordpress/src:/var/www/html
+      - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.wordpress.rule=Host(`${DOMAIN_NAME}`)"

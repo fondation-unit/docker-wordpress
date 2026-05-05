@@ -1,0 +1,99 @@
+services:
+  wordpress:
+    build:
+      dockerfile: ./wordpress/docker/Dockerfile
+    command: apache2-foreground
+    container_name: wordpress
+    restart: always
+    env_file: .env
+    environment:
+      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
+      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
+      - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
+    volumes:
+      - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wordpress.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.wordpress.entrypoints=websecure"
+      - "traefik.http.routers.wordpress.tls.certresolver=myresolver"
+      - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+      # Gzip compression
+      - "traefik.http.routers.${APP_NAME}.middlewares=compress@docker"
+      - "traefik.http.middlewares.compress.compress=true"
+      # Timeouts
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.dialTimeout=60s"
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.responseHeaderTimeout=300s"
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.idleConnTimeout=300s"
+    networks:
+      - web
+    depends_on:
+      - db
+    healthcheck:
+      test: [ "CMD", "php-fpm", "-t" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  db:
+    image: mariadb:latest
+    container_name: db
+    restart: always
+    expose:
+      - "3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/my.cnf:/etc/mysql/my.cnf
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      - "--innodb-read-only-compressed=OFF"
+    env_file: .env
+    environment:
+      - MYSQL_USER=${WORDPRESS_DB_USER}
+      - MYSQL_PASSWORD=${WORDPRESS_DB_PASSWORD}
+      - MYSQL_DATABASE=${WORDPRESS_DB_NAME}
+      - MYSQL_ALLOW_EMPTY_PASSWORD=0
+      - TZ=Europe/Paris
+    networks:
+      - web
+    labels:
+      - "traefik.enable=false"
+
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      # Resolver
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./traefik/acme.json:/letsencrypt/acme.json"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+volumes:
+  db_data:
+
+networks:
+  web:
+    driver: bridge

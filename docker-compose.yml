@@ -6,6 +6,8 @@ services:
     container_name: wordpress
     restart: always
     env_file: .env
+    ports:
+      - "80:80"
     environment:
       - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
       - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}

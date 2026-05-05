@@ -19,12 +19,26 @@ services:
       - "traefik.http.routers.wordpress.entrypoints=websecure"
       - "traefik.http.routers.wordpress.tls.certresolver=myresolver"
       - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+      # Gzip compression
+      - "traefik.http.routers.${APP_NAME}.middlewares=compress@docker"
+      - "traefik.http.middlewares.compress.compress=true"
+      # Timeouts
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.dialTimeout=60s"
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.responseHeaderTimeout=300s"
+      - "traefik.http.serversTransports.${APP_NAME}-transport.forwardingTimeout\
+        s.idleConnTimeout=300s"
     networks:
       - web
     depends_on:
       - db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: [ "CMD", "php-fpm", "-t" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   db:
     image: mariadb:latest
@@ -62,6 +76,7 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      # Resolver
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
@@ -77,8 +92,7 @@ services:
 
 volumes:
   db_data:
-    driver: local
 
 networks:
   web:
-    external: true
+    driver: bridge

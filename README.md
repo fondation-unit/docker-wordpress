@@ -47,3 +47,24 @@ services:
     build:
       dockerfile: ./wordpress/docker/Dockerfile
 ```
+
+## Systemd services
+
+Copy and activate the Docker systemd service:
+
+```bash
+cp infra/systemd/docker-wordpress.service /etc/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl enable docker-wordpress.service
+sudo systemctl start docker-wordpress.service
+```
+
+Optional SSH tunnel:
+
+```bash
+chmod +x infra/deploy-tunnel.sh
+sudo ./infra/deploy-tunnel.sh
+
+systemctl status solr-tunnel
+ss -tlnp | grep 8983
+```

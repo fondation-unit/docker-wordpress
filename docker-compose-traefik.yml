@@ -14,6 +14,7 @@ services:
     volumes:
       - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
       - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
+      - ./wordpress/src/wp-content/themes:/var/www/html/wp-content/themes
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.wordpress.rule=Host(`${DOMAIN_NAME}`)"

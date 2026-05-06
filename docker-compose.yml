@@ -1,6 +1,7 @@
 services:
   wordpress:
     build:
+      context: .
       dockerfile: ./wordpress/docker/Dockerfile
     command: apache2-foreground
     container_name: wordpress
@@ -9,13 +10,16 @@ services:
     ports:
       - "80:80"
     environment:
-      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
-      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
-      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
-      - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DEBUG: 1
     volumes:
       - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
       - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
+      - ./wordpress/src/wp-content/themes:/var/www/html/wp-content/themes
+      - ./wordpress/src/wp-config.php:/var/www/html/wp-config.php
     networks:
       - web
     depends_on:

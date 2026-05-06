@@ -1,30 +1,35 @@
 services:
   wordpress:
     build:
+      context: .
       dockerfile: ./wordpress/docker/Dockerfile
-    command: sh -c "chown -R www-data:www-data /var/www/html && apache2-foreground"
+    command: apache2-foreground
     container_name: wordpress
     restart: always
     env_file: .env
+    ports:
+      - "80:80"
     environment:
-      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
-      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
-      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
-      - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DEBUG: 1
     volumes:
-      - ./wordpress/src:/var/www/html
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.wordpress.rule=Host(`${DOMAIN_NAME}`)"
-      - "traefik.http.routers.wordpress.entrypoints=websecure"
-      - "traefik.http.routers.wordpress.tls.certresolver=myresolver"
-      - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+      - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
+      - ./wordpress/src/wp-content/themes:/var/www/html/wp-content/themes
+      - ./wordpress/src/wp-config.php:/var/www/html/wp-config.php
     networks:
       - web
     depends_on:
       - db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: [ "CMD", "php-fpm", "-t" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   db:
     image: mariadb:latest
@@ -48,37 +53,10 @@ services:
       - TZ=Europe/Paris
     networks:
       - web
-    labels:
-      - "traefik.enable=false"
-
-  traefik:
-    image: traefik:v3.6
-    container_name: traefik
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - "./traefik/acme.json:/letsencrypt/acme.json"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    networks:
-      - web
 
 volumes:
   db_data:
-    driver: local
 
 networks:
   web:
-    external: true
+    driver: bridge

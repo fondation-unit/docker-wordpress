@@ -1,4 +1,4 @@
-FROM wordpress:php8.3-apache
+FROM wordpress:6.9.4-php8.5-apache
 
 # Install additional dependencies using predefined $PHPIZE_DEPS variable
 RUN apt-get update && apt-get install -y \

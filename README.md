@@ -25,7 +25,7 @@ define('FORCE_SSL_ADMIN', true);
 // If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
 // see also https://wordpress.org/support/article/administration-over-ssl/#using-a-reverse-proxy
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
- $_SERVER['HTTPS'] = 'on';
+  $_SERVER['HTTPS'] = 'on';
 }
 ```
 
@@ -46,4 +46,25 @@ services:
   wordpress:
     build:
       dockerfile: ./wordpress/docker/Dockerfile
+```
+
+## Systemd services
+
+Copy and activate the Docker systemd service:
+
+```bash
+cp infra/systemd/docker-wordpress.service /etc/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl enable docker-wordpress.service
+sudo systemctl start docker-wordpress.service
+```
+
+Optional SSH tunnel:
+
+```bash
+chmod +x infra/deploy-tunnel.sh
+sudo ./infra/deploy-tunnel.sh
+
+systemctl status solr-tunnel
+ss -tlnp | grep 8983
 ```

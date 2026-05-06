@@ -1,0 +1,18 @@
+[Unit]
+Description=Solr SSH Tunnel
+After=network.target
+
+[Service]
+User=${TUNNEL_USER}
+ExecStart=/usr/bin/ssh -N \
+  -i /home/${TUNNEL_USER}/.ssh/id_ed25519 \
+  -L ${DOCKER_BRIDGE_IP}:${SOLR_PORT}:localhost:${SOLR_PORT} \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=60 \
+  -o ServerAliveCountMax=3 \
+  ${REMOTE_USER}@${REMOTE_HOST}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

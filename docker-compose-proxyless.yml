@@ -1,0 +1,75 @@
+services:
+  wordpress:
+    build:
+      context: .
+      dockerfile: ./wordpress/docker/Dockerfile
+    command: apache2-foreground
+    container_name: wordpress
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${MARIADB_USER}
+      WORDPRESS_DB_PASSWORD: ${MARIADB_PASSWORD}
+      WORDPRESS_DB_NAME: ${MARIADB_DATABASE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+    volumes:
+      - ./wordpress/src/wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress/src/wp-content/uploads:/var/www/html/wp-content/uploads
+      - ./wordpress/src/wp-content/themes:/var/www/html/wp-content/themes
+      - ./wordpress/src/wp-config.php:/var/www/html/wp-config.php
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - backend
+      - web
+
+  db:
+    image: mariadb:11.4
+    container_name: db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: Europe/Paris
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+volumes:
+  db_data:
+  wordpress_src:
+
+networks:
+  backend:
+    internal: true
+  socket:
+    internal: true
+  web:
+    external: true

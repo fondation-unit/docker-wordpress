@@ -1,51 +1,35 @@
 # Docker WordPress
 
-A Docker Compose stack for deploying WordPress using a Traefik proxy, based on the official WordPress image.
+A Docker Compose stack for deploying WordPress using a Traefik proxy.
 
 ## Usage
 
-### Local:
+1. Copy the sample file [.env.sample](.env.sample) as `.env` and fill in the missing information.
 
-- Download and extract WordPress sources in [wordpress/src](./wordpress/src/)
-- Run the local docker-compose stack: `docker-compose -f docker-compose-local.yml up`
+2. Create the network:
 
-### Production:
-
-1. Set correct permissions on `acme.json` file to allow Traefik to write certificates:
-
-```sh
-chmod 600 traefik/acme.json
+```bash
+sudo docker network create web
+sudo docker network create backend
+sudo docker network create socket
 ```
 
-2. WordPress may need `FORCE_SSL_ADMIN` to properly load stylesheets and force HTTPS in the admin dashboard:
+3. Set correct permissions on `acme.json` file to allow Traefik to write certificates:
 
-```php
-define('FORCE_SSL_ADMIN', true);
-
-// If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
-// see also https://wordpress.org/support/article/administration-over-ssl/#using-a-reverse-proxy
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
-  $_SERVER['HTTPS'] = 'on';
-}
+```bash
+sudo chmod 600 traefik/acme.json
 ```
 
-## Adding PHP extensions
+4. Build the stack:
 
-Depending on your requirements, you can either use the default WordPress image:
-
-```yaml
-services:
-  wordpress:
-    image: wordpress:latest
+```bash
+sudo docker compose build --no-cache
 ```
 
-Or build a custom image with additional PHP extensions. To do this, modify the `wwordpress` service in `docker-compose.yml` to use a local build:
+5. Run the stack:
 
-```yaml
-services:
-  wordpress:
-    build:
-      dockerfile: ./wordpress/docker/Dockerfile
+```bash
+sudo docker compose up -d
 ```
 
 ## Systemd services
@@ -59,12 +43,27 @@ sudo systemctl enable docker-wordpress.service
 sudo systemctl start docker-wordpress.service
 ```
 
-Optional SSH tunnel:
+## Generate WordPress salt
+
+- Generate random salt: [https://api.wordpress.org/secret-key/1.1/salt/](https://api.wordpress.org/secret-key/1.1/salt/)
+- Add values to the `.env` file
+
+## SSL issues
+
+WordPress may need `FORCE_SSL_ADMIN` to properly load stylesheets and force HTTPS in the admin dashboard:
+
+```php
+define('FORCE_SSL_ADMIN', true);
+
+// If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
+// see also https://wordpress.org/support/article/administration-over-ssl/#using-a-reverse-proxy
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
+  $_SERVER['HTTPS'] = 'on';
+}
+```
+
+## Restore a database
 
 ```bash
-chmod +x infra/deploy-tunnel.sh
-sudo ./infra/deploy-tunnel.sh
-
-systemctl status solr-tunnel
-ss -tlnp | grep 8983
+cat /path/to/dump.sql | sudo docker exec -i db mariadb -u root database-name
 ```

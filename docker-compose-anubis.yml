@@ -17,18 +17,17 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
     volumes:
-      - wordpress_src:/var/www/html
+      - ./wordpress/src:/var/www/html
     depends_on:
       db:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=web"
       - "traefik.http.routers.${APP_NAME}.rule=Host(`${DOMAIN_NAME}`)"
       - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
       - "traefik.http.routers.${APP_NAME}.tls.certresolver=myresolver"
       - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=80"
-      - "traefik.http.routers.${APP_NAME}.middlewares=security-headers@file,block-scan@file,compress@file"
+      - "traefik.http.routers.${APP_NAME}.middlewares=security-headers@file,block-scan@file,compress@file,anubis@docker"
     networks:
       - web
       - backend
@@ -104,9 +103,30 @@ services:
       - web
       - socket
 
+  anubis:
+    image: ghcr.io/techarohq/anubis:main
+    container_name: anubis
+    environment:
+      - BIND=:8080 # where to listen for Traefik
+      - "TARGET= " # do redirect - ensure there is a space after '='
+      # Specifies which domains Anubis is allowed to redirect to.
+      - REDIRECT_DOMAINS=${DOMAIN_NAME}
+      # Should be the full external URL for Anubis (including scheme)
+      - PUBLIC_URL=https://${ANUBIS_DOMAIN_NAME}
+      # Should match your domain for proper cookie scoping
+      - COOKIE_DOMAIN=${DOMAIN_NAME}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.anubis.rule=Host(`${ANUBIS_DOMAIN_NAME}`)" # Only Matching Requests for this domain
+      - "traefik.http.routers.anubis.entrypoints=websecure"
+      - "traefik.http.services.anubis.loadbalancer.server.port=8080" # telling Traefik where to receive requests
+      - "traefik.http.routers.anubis.service=anubis" # telling Traefik to use the above specified port
+      - "traefik.http.routers.anubis.tls.certresolver=myresolver" # telling Traefik to resolve a cert for Anubis
+    networks:
+      - web
+
 volumes:
   db_data:
-  wordpress_src:
 
 networks:
   backend:
@@ -114,4 +134,4 @@ networks:
   socket:
     internal: true
   web:
-    external: true
+    driver: bridge
